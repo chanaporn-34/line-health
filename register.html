@@ -38,6 +38,10 @@
   .muted { color:var(--muted); font-size:14px; }
   .info { text-align:left; background:#f9fafb; border-radius:10px; padding:12px 14px; margin-top:16px; font-size:14px; line-height:1.8; }
   .hidden { display:none; }
+  .res { text-align:left; border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; margin-top:10px; display:flex; align-items:center; gap:10px; }
+  .res .t { flex:1; } .res b { display:block; font-size:15px; } .res small { color:var(--muted); }
+  .res a { background:var(--green); color:#fff; text-decoration:none; font-weight:700; padding:10px 14px; border-radius:10px; white-space:nowrap; }
+  .tip { background:#FFF8DB; color:#6B4E00; border-radius:10px; padding:12px 14px; margin-top:14px; font-size:14px; text-align:left; line-height:1.6; }
   .spinner { width:36px; height:36px; border:4px solid #d1fae5; border-top-color:var(--green); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 12px; }
   @keyframes spin { to { transform:rotate(360deg); } }
 </style>
@@ -112,6 +116,7 @@
     <h2 id="doneTitle" style="margin:8px 0">ลงทะเบียนสำเร็จ</h2>
     <div class="muted" id="doneMsg"></div>
     <div class="info" id="doneInfo"></div>
+    <div id="doneResults"></div>
     <button id="btnClose">กลับไปที่แชท</button>
     <button id="btnEdit" class="btn-ghost hidden">แก้ไขข้อมูล</button>
   </div>
@@ -148,6 +153,25 @@ $('phone').addEventListener('input', e => e.target.value = fmtPhone(e.target.val
 $('prefix').addEventListener('change', e => $('prefixOther').classList.toggle('hidden', e.target.value !== '__other'));
 
 let idToken;
+
+function showResults(r) {
+  const box = $('doneResults'); box.innerHTML = '';
+  (r.results || []).forEach(x => {
+    const d = document.createElement('div'); d.className = 'res';
+    d.innerHTML = '<div class="t"><b></b><small></small></div><a>📄 เปิด PDF</a>';
+    d.querySelector('b').textContent = x.testName;
+    d.querySelector('small').textContent = 'วันที่ตรวจ ' + x.examDate;
+    if (x.url) d.querySelector('a').href = x.url;
+    else { const a = d.querySelector('a'); a.removeAttribute('href'); a.textContent = x.note; a.style.background = '#E8F5E9'; a.style.color = '#0B6B3A'; }
+    box.appendChild(d);
+  });
+  const tip = document.createElement('div'); tip.className = 'tip';
+  tip.textContent = (r.results && r.results.length)
+    ? '💡 ดูผลตรวจได้ทุกเมื่อ โดยกดเมนู "ผลตรวจของฉัน" ในแชท LINE'
+    : '🔔 ' + (r.expected || 'เมื่อผลตรวจออก ระบบจะแจ้งทาง LINE โดยอัตโนมัติ') + '\n💡 เช็กผลได้เองที่เมนู "ผลตรวจของฉัน"';
+  tip.style.whiteSpace = 'pre-line';
+  box.appendChild(tip);
+}
 
 function showDone(title, msg, p, canEdit) {
   $('doneTitle').textContent = title;
@@ -199,8 +223,9 @@ $('vForm').addEventListener('submit', async e => {
   try {
     const r = await callApi({ action: 'register', idToken, data });
     showDone('ลงทะเบียนสำเร็จ',
-      r.resultCount ? `พบผลตรวจ ${r.resultCount} รายการ ระบบส่งไปที่แชทแล้ว` : 'เมื่อผลตรวจออก ระบบจะแจ้งทาง LINE โดยอัตโนมัติ',
+      r.resultCount ? `พบผลตรวจของคุณ ${r.resultCount} รายการ กดเปิดดูได้เลย 👇` : 'ยังไม่มีผลตรวจในระบบ',
       r.patient, false);
+    showResults(r);
   } catch (err) {
     $('alert').textContent = err.message;
     $('alert').classList.add('show');

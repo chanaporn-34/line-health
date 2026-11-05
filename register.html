@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>ลงทะเบียนรับผลตรวจสุขภาพ</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="config.js"></script>
+<style>
+  :root { --green:#06C755; --green-d:#05a647; --ink:#1f2933; --muted:#6b7280; --line:#e5e7eb; --bg:#f3faf5; --err:#dc2626; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--ink); font-size:16px; }
+  header { background:var(--green); color:#fff; padding:20px 20px 28px; }
+  header h1 { margin:0; font-size:21px; }
+  header p { margin:6px 0 0; font-size:14px; opacity:.92; }
+  .card { background:#fff; margin:-14px 14px 20px; border-radius:16px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+  label { display:block; font-weight:600; font-size:15px; margin:16px 0 6px; }
+  label .req { color:var(--err); }
+  input, select { width:100%; padding:12px 14px; font:inherit; border:1.5px solid var(--line); border-radius:10px; background:#fff; }
+  input:focus, select:focus { outline:none; border-color:var(--green); }
+  .row { display:flex; gap:10px; } .row > * { flex:1; }
+  .hint { font-size:13px; color:var(--muted); margin-top:4px; }
+  .err { font-size:13px; color:var(--err); margin-top:4px; display:none; }
+  .invalid input, .invalid select { border-color:var(--err); }
+  .invalid .err { display:block; }
+  .consent { display:flex; gap:10px; align-items:flex-start; margin-top:20px; padding:12px; background:#f9fafb; border-radius:10px; font-size:13px; color:#374151; line-height:1.55; }
+  .consent input { width:20px; height:20px; flex:none; margin-top:2px; accent-color:var(--green); }
+  button { width:100%; margin-top:20px; padding:14px; border:0; border-radius:12px; background:var(--green); color:#fff; font:inherit; font-size:17px; font-weight:700; }
+  button:active { background:var(--green-d); }
+  button:disabled { opacity:.55; }
+  .btn-ghost { background:#fff; color:var(--green); border:1.5px solid var(--green); }
+  .alert { padding:12px 14px; border-radius:10px; font-size:14px; margin-bottom:12px; display:none; }
+  .alert.show { display:block; }
+  .alert.error { background:#fef2f2; color:#991b1b; }
+  .center { text-align:center; padding:30px 10px; }
+  .big { font-size:54px; }
+  .muted { color:var(--muted); font-size:14px; }
+  .info { text-align:left; background:#f9fafb; border-radius:10px; padding:12px 14px; margin-top:16px; font-size:14px; line-height:1.8; }
+  .hidden { display:none; }
+  .spinner { width:36px; height:36px; border:4px solid #d1fae5; border-top-color:var(--green); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 12px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>📝 ลงทะเบียนรับผลตรวจสุขภาพ</h1>
+  <p id="centerName"></p>
+</header>
+
+<div class="card">
+  <!-- Loading -->
+  <div id="vLoading" class="center"><div class="spinner"></div><div class="muted">กำลังโหลด...</div></div>
+
+  <!-- Form -->
+  <form id="vForm" class="hidden" novalidate>
+    <div id="alert" class="alert error"></div>
+    <p class="muted" style="margin:0">กรุณากรอกข้อมูลให้ตรงกับบัตรประชาชน เพื่อให้ระบบส่งผลตรวจถึงคุณได้ถูกต้อง</p>
+
+    <div class="f" id="fPrefix">
+      <label>คำนำหน้าชื่อ <span class="req">*</span></label>
+      <select id="prefix">
+        <option value="">— เลือก —</option>
+        <option>นาย</option><option>นาง</option><option>นางสาว</option>
+        <option>เด็กชาย</option><option>เด็กหญิง</option><option value="__other">อื่น ๆ</option>
+      </select>
+      <input id="prefixOther" class="hidden" placeholder="ระบุคำนำหน้า เช่น ดร., พญ., ว่าที่ ร.ต." style="margin-top:8px">
+      <div class="err">กรุณาเลือกคำนำหน้าชื่อ</div>
+    </div>
+
+    <div class="row">
+      <div class="f" id="fFirst">
+        <label>ชื่อ <span class="req">*</span></label>
+        <input id="firstName" autocomplete="given-name">
+        <div class="err">กรุณากรอกชื่อ</div>
+      </div>
+      <div class="f" id="fLast">
+        <label>นามสกุล <span class="req">*</span></label>
+        <input id="lastName" autocomplete="family-name">
+        <div class="err">กรุณากรอกนามสกุล</div>
+      </div>
+    </div>
+
+    <div class="f" id="fCid">
+      <label>เลขบัตรประชาชน 13 หลัก <span class="req">*</span></label>
+      <input id="cid" inputmode="numeric" placeholder="x-xxxx-xxxxx-xx-x" maxlength="17">
+      <div class="err">เลขบัตรประชาชนไม่ถูกต้อง</div>
+    </div>
+
+    <div class="f" id="fPhone">
+      <label>เบอร์โทรศัพท์ <span class="req">*</span></label>
+      <input id="phone" inputmode="tel" placeholder="08x-xxx-xxxx" maxlength="12" autocomplete="tel">
+      <div class="err">เบอร์โทรศัพท์ไม่ถูกต้อง</div>
+    </div>
+
+    <div class="f" id="fConsent">
+      <label class="consent">
+        <input type="checkbox" id="consent">
+        <span>ข้าพเจ้ายินยอมให้ศูนย์ฯ เก็บและใช้ข้อมูลข้างต้นเพื่อยืนยันตัวตนและส่งผลตรวจสุขภาพผ่าน LINE
+        และยินยอมให้ประมวลผลเอกสารผลตรวจด้วยระบบ AI เมื่อข้าพเจ้ากดขอ "แปลผล" เท่านั้น
+        ตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 ข้าพเจ้าสามารถขอยกเลิกได้โดยติดต่อเจ้าหน้าที่</span>
+      </label>
+      <div class="err">กรุณายินยอมก่อนลงทะเบียน</div>
+    </div>
+
+    <button type="submit" id="btnSubmit">ลงทะเบียน</button>
+  </form>
+
+  <!-- Success / Already registered -->
+  <div id="vDone" class="center hidden">
+    <div class="big">✅</div>
+    <h2 id="doneTitle" style="margin:8px 0">ลงทะเบียนสำเร็จ</h2>
+    <div class="muted" id="doneMsg"></div>
+    <div class="info" id="doneInfo"></div>
+    <button id="btnClose">กลับไปที่แชท</button>
+    <button id="btnEdit" class="btn-ghost hidden">แก้ไขข้อมูล</button>
+  </div>
+
+  <!-- Error -->
+  <div id="vError" class="center hidden">
+    <div class="big">⚠️</div>
+    <p id="errMsg"></p>
+  </div>
+</div>
+
+<script>
+const C = window.APP_CONFIG;
+const $ = id => document.getElementById(id);
+const show = v => ['vLoading','vForm','vDone','vError'].forEach(x => $(x).classList.toggle('hidden', x !== v));
+$('centerName').textContent = C.CENTER_NAME;
+
+function validThaiId(id) {
+  if (!/^\d{13}$/.test(id)) return false;
+  let s = 0; for (let i = 0; i < 12; i++) s += +id[i] * (13 - i);
+  return (11 - s % 11) % 10 === +id[12];
+}
+function fmtCid(v) {
+  const d = v.replace(/\D/g, '').slice(0, 13), p = [1, 4, 5, 2, 1]; let out = '', i = 0;
+  for (const n of p) { if (i >= d.length) break; out += (out ? '-' : '') + d.slice(i, i + n); i += n; }
+  return out;
+}
+function fmtPhone(v) {
+  const d = v.replace(/\D/g, '').slice(0, 10);
+  return d.length > 6 ? d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6) : d.length > 3 ? d.slice(0,3)+'-'+d.slice(3) : d;
+}
+$('cid').addEventListener('input', e => e.target.value = fmtCid(e.target.value));
+$('phone').addEventListener('input', e => e.target.value = fmtPhone(e.target.value));
+$('prefix').addEventListener('change', e => $('prefixOther').classList.toggle('hidden', e.target.value !== '__other'));
+
+let idToken;
+
+function showDone(title, msg, p, canEdit) {
+  $('doneTitle').textContent = title;
+  $('doneMsg').textContent = msg;
+  $('doneInfo').innerHTML = `<b>ชื่อ:</b> ${p.name}<br><b>เลขบัตร:</b> ${p.cid}<br><b>เบอร์โทร:</b> ${p.phone}`;
+  $('btnEdit').classList.toggle('hidden', !canEdit);
+  show('vDone');
+}
+
+async function init() {
+  try {
+    await liff.init({ liffId: C.LIFF_REGISTER_ID });
+    if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
+    idToken = liff.getIDToken();
+    const st = await callApi({ action: 'status', idToken });
+    if (st.registered) showDone('คุณลงทะเบียนแล้ว', 'ระบบจะแจ้งผลตรวจมาทาง LINE นี้โดยอัตโนมัติ', st.patient, true);
+    else show('vForm');
+  } catch (e) {
+    $('errMsg').textContent = e.message || 'ไม่สามารถโหลดหน้าได้ กรุณาเปิดผ่านแอป LINE';
+    show('vError');
+  }
+}
+
+$('vForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('alert').classList.remove('show');
+  const prefix = $('prefix').value === '__other' ? $('prefixOther').value.trim() : $('prefix').value;
+  const data = {
+    prefix,
+    firstName: $('firstName').value.trim(),
+    lastName: $('lastName').value.trim(),
+    cid: $('cid').value.replace(/\D/g, ''),
+    phone: $('phone').value.replace(/\D/g, ''),
+    consent: $('consent').checked,
+  };
+  const checks = {
+    fPrefix: !!data.prefix, fFirst: !!data.firstName, fLast: !!data.lastName,
+    fCid: validThaiId(data.cid), fPhone: /^0\d{8,9}$/.test(data.phone), fConsent: data.consent,
+  };
+  let firstBad = null;
+  for (const [id, ok] of Object.entries(checks)) {
+    $(id).classList.toggle('invalid', !ok);
+    if (!ok && !firstBad) firstBad = id;
+  }
+  if (firstBad) return $(firstBad).scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  const btn = $('btnSubmit');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  try {
+    const r = await callApi({ action: 'register', idToken, data });
+    showDone('ลงทะเบียนสำเร็จ',
+      r.resultCount ? `พบผลตรวจ ${r.resultCount} รายการ ระบบส่งไปที่แชทแล้ว` : 'เมื่อผลตรวจออก ระบบจะแจ้งทาง LINE โดยอัตโนมัติ',
+      r.patient, false);
+  } catch (err) {
+    $('alert').textContent = err.message;
+    $('alert').classList.add('show');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } finally {
+    btn.disabled = false; btn.textContent = 'ลงทะเบียน';
+  }
+});
+
+$('btnClose').onclick = () => liff.isInClient() ? liff.closeWindow() : window.close();
+$('btnEdit').onclick = () => show('vForm');
+init();
+</script>
+</body>
+</html>

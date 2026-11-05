@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ผลตรวจสุขภาพ</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="config.js"></script>
+<style>
+  :root { --green:#06C755; --ink:#1f2933; --muted:#6b7280; }
+  body { margin:0; font-family:'Sarabun',sans-serif; background:#eef2f0; color:var(--ink); }
+  header { position:sticky; top:0; z-index:5; background:var(--green); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:10px; }
+  header .t { flex:1; min-width:0; }
+  header h1 { margin:0; font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  header p { margin:2px 0 0; font-size:13px; opacity:.9; }
+  header button { background:#fff; color:var(--green); border:0; border-radius:8px; padding:8px 12px; font:inherit; font-weight:700; font-size:14px; }
+  #pages { padding:12px; }
+  canvas { display:block; width:100%; height:auto; margin:0 auto 12px; background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.12); border-radius:4px; }
+  .center { text-align:center; padding:60px 20px; color:var(--muted); }
+  .big { font-size:52px; }
+  .spinner { width:36px; height:36px; border:4px solid #d1fae5; border-top-color:var(--green); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 12px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .note { font-size:12px; color:var(--muted); text-align:center; padding:0 16px 24px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="t"><h1 id="title">ผลตรวจสุขภาพ</h1><p id="who"></p></div>
+  <button id="btnDl" hidden>บันทึก PDF</button>
+</header>
+<div id="pages"><div class="center"><div class="spinner"></div>กำลังเปิดเอกสาร...</div></div>
+<div class="note" id="note" hidden>🔒 เอกสารนี้เป็นข้อมูลส่วนบุคคล กรุณาอย่าส่งต่อให้ผู้อื่น</div>
+
+<script>
+const C = window.APP_CONFIG;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function fail(msg) {
+  document.getElementById('pages').innerHTML = `<div class="center"><div class="big">⚠️</div><p>${msg}</p></div>`;
+}
+
+async function main() {
+  try {
+    await liff.init({ liffId: C.LIFF_VIEWER_ID });
+    if (!liff.isLoggedIn()) return liff.login({ redirectUri: location.href });
+    const rid = new URLSearchParams(location.search).get('rid');
+    if (!rid) return fail('ไม่พบรหัสผลตรวจ');
+
+    const r = await callApi({ action: 'getPdf', idToken: liff.getIDToken(), rid });
+    document.getElementById('title').textContent = r.testName;
+    document.getElementById('who').textContent = r.patientName;
+
+    const bytes = Uint8Array.from(atob(r.base64), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+
+    const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+    const box = document.getElementById('pages');
+    box.innerHTML = '';
+    const scale = Math.min(2.5, (window.devicePixelRatio || 1) * 1.5);
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale });
+      const cv = document.createElement('canvas');
+      cv.width = vp.width; cv.height = vp.height;
+      box.appendChild(cv);
+      await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    }
+    document.getElementById('note').hidden = false;
+
+    const dl = document.getElementById('btnDl');
+    dl.hidden = false;
+    dl.onclick = async () => {
+      const file = new File([blob], r.fileName, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: r.testName }); return; } catch (e) {}
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = r.fileName; a.click();
+    };
+  } catch (e) {
+    fail(e.message || 'ไม่สามารถเปิดเอกสารได้');
+  }
+}
+main();
+</script>
+</body>
+</html>
